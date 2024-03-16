@@ -7,15 +7,15 @@ edition = "2021"
 
 [lib]
 name = "vim_graphical_preview"
-crate-type = ["cdylib"]      # Creates dynamic lib
+crate-type = ["cdylib"]        # Creates dynamic lib
 
 [dependencies]
 miniserde = "0.1"
-magick_rust = {version="0.15", features=["disable-hdri"]}
-regex = "1.5.4"
+magick_rust = { version = "0.20", features = ["disable-hdri"] }
+regex = "1.10.3"
 sha2 = "0.10"
-which = "4"
-nix = "0.23"
+which = "6"
+nix = { version = "0.28", features = ["ioctl", "term"] }
 flame = "0.2"
 
 [profile.release]

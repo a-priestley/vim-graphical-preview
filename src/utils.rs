@@ -1,10 +1,10 @@
-use std::io::Read;
-use std::{str, usize, io::Write};
-use std::path::{Path, PathBuf};
-use std::fs::File;
-use std::process::{Command, Stdio};
-use sha2::{Digest, Sha256};
 use nix::{ioctl_read_bad, pty::Winsize};
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::{io::Write, str, usize};
 
 use crate::error::{Error, Result};
 use crate::render::ART_PATH;
@@ -26,10 +26,10 @@ pub fn char_pixel_height() -> usize {
         ws_row: 0,
         ws_col: 0,
         ws_xpixel: 0,
-        ws_ypixel: 0
+        ws_ypixel: 0,
     };
 
-    unsafe {tiocgwinsz(0, &mut size).unwrap() };
+    unsafe { tiocgwinsz(0, &mut size).unwrap() };
 
     if size.ws_ypixel > 2 {
         size.ws_ypixel as usize / size.ws_row as usize
@@ -46,8 +46,7 @@ pub fn generate_svg_from_latex(path: &Path, zoom: f32) -> Result<PathBuf> {
     // use latex to generate a dvi
     let dvi_path = path.with_extension("dvi");
     if !dvi_path.exists() {
-        let latex_path = which::which("latex")
-            .map_err(Error::BinaryNotFound)?;
+        let latex_path = which::which("latex").map_err(Error::BinaryNotFound)?;
 
         let cmd = Command::new(latex_path)
             .current_dir(&dest_path)
@@ -99,8 +98,7 @@ pub fn generate_svg_from_latex(path: &Path, zoom: f32) -> Result<PathBuf> {
     // convert the dvi to a svg file with the woff font format
     let svg_path = path.with_extension("svg");
     if !svg_path.exists() && dvi_path.exists() {
-        let dvisvgm_path = which::which("dvisvgm")
-            .map_err(Error::BinaryNotFound)?;
+        let dvisvgm_path = which::which("dvisvgm").map_err(Error::BinaryNotFound)?;
 
         let cmd = Command::new(dvisvgm_path)
             .current_dir(&dest_path)
@@ -123,11 +121,10 @@ pub fn generate_svg_from_latex(path: &Path, zoom: f32) -> Result<PathBuf> {
 }
 
 /// Parse an equation with the given zoom
-pub fn parse_equation(
-    content: &str,
-    zoom: f32,
-) -> Result<PathBuf> {
-    let path = Path::new(ART_PATH).join(hash(content)).with_extension("svg");
+pub fn parse_equation(content: &str, zoom: f32) -> Result<PathBuf> {
+    let path = Path::new(ART_PATH)
+        .join(hash(content))
+        .with_extension("svg");
 
     // create a new tex file containing the equation
     if !path.with_extension("tex").exists() {
@@ -136,8 +133,7 @@ pub fn parse_equation(
         file.write_all("\\documentclass[20pt, preview]{standalone}\n\\usepackage{amsmath}\\usepackage{amsfonts}\n\\begin{document}\n$$\n".as_bytes())
             .map_err(Error::Io)?;
 
-        file.write_all(content.as_bytes())
-            .map_err(Error::Io)?;
+        file.write_all(content.as_bytes()).map_err(Error::Io)?;
 
         file.write_all("$$\n\\end{document}".as_bytes())
             .map_err(Error::Io)?;
@@ -151,10 +147,11 @@ pub fn parse_equation(
 /// This function generates a latex file with gnuplot `epslatex` backend and then source it into
 /// the generate latex function
 pub fn generate_latex_from_gnuplot(content: &str) -> Result<PathBuf> {
-    let path = Path::new(ART_PATH).join(hash(content)).with_extension("tex");
+    let path = Path::new(ART_PATH)
+        .join(hash(content))
+        .with_extension("tex");
 
-    let gnuplot_path = which::which("gnuplot")
-        .map_err(Error::BinaryNotFound)?;
+    let gnuplot_path = which::which("gnuplot").map_err(Error::BinaryNotFound)?;
 
     let cmd = Command::new(gnuplot_path)
         .stdin(Stdio::piped())
@@ -167,22 +164,25 @@ pub fn generate_latex_from_gnuplot(content: &str) -> Result<PathBuf> {
     let mut stdin = cmd.stdin.unwrap();
 
     stdin
-        .write_all(format!("set output '{}'\n", path.file_name().unwrap().to_str().unwrap()).as_bytes())
+        .write_all(
+            format!(
+                "set output '{}'\n",
+                path.file_name().unwrap().to_str().unwrap()
+            )
+            .as_bytes(),
+        )
         .map_err(Error::Io)?;
     stdin
         .write_all("set terminal epslatex color standalone\n".as_bytes())
         .map_err(Error::Io)?;
-    stdin
-        .write_all(content.as_bytes())
-        .map_err(Error::Io)?;
+    stdin.write_all(content.as_bytes()).map_err(Error::Io)?;
 
     Ok(path)
 }
 
 pub fn generate_latex_from_gnuplot_file(path: &Path) -> Result<PathBuf> {
     let mut content = String::new();
-    let mut f = File::open(path)
-        .map_err(Error::Io)?;
+    let mut f = File::open(path).map_err(Error::Io)?;
     f.read_to_string(&mut content).unwrap();
 
     let path = generate_latex_from_gnuplot(&content)?;
@@ -190,17 +190,16 @@ pub fn generate_latex_from_gnuplot_file(path: &Path) -> Result<PathBuf> {
 }
 
 /// Parse a latex content and convert it to a SVG file
-pub fn parse_latex(
-    content: &str,
-) -> Result<PathBuf> {
-    let path = Path::new(ART_PATH).join(hash(content)).with_extension("svg");
+pub fn parse_latex(content: &str) -> Result<PathBuf> {
+    let path = Path::new(ART_PATH)
+        .join(hash(content))
+        .with_extension("svg");
 
     // create a new tex file containing the equation
     if !path.with_extension("tex").exists() {
-         let mut file = File::create(&path.with_extension("tex")).map_err(Error::Io)?;
+        let mut file = File::create(&path.with_extension("tex")).map_err(Error::Io)?;
 
-         file.write_all(content.as_bytes())
-            .map_err(Error::Io)?;
+        file.write_all(content.as_bytes()).map_err(Error::Io)?;
     }
 
     if !path.exists() {
@@ -210,12 +209,9 @@ pub fn parse_latex(
     Ok(path)
 }
 
-pub fn parse_latex_from_file(
-    path: &Path,
-) -> Result<PathBuf> {
+pub fn parse_latex_from_file(path: &Path) -> Result<PathBuf> {
     let mut content = String::new();
-    let mut f = File::open(path)
-        .map_err(Error::Io)?;
+    let mut f = File::open(path).map_err(Error::Io)?;
     f.read_to_string(&mut content).unwrap();
 
     parse_latex(&content)
